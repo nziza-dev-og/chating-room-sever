@@ -1,3 +1,4 @@
+// server/index.js
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
@@ -5,22 +6,32 @@ const { Server } = require('socket.io');
 require('dotenv').config();
 
 const app = express();
-const server = http.createServer(app);
 
-app.use(cors());
+// Allow your front-end origin; replace with your actual Vercel URL
+app.use(cors({
+  origin: 'https://chating-room-gamma.vercel.app',
+  methods: ['GET','POST'],
+  credentials: true
+}));
 app.use(express.json());
 
 // Health check
-app.get('/', (req, res) => res.send('Server running'));
+app.get('/', (_, res) => res.send('Server running'));
 
-// Proxy endpoint for notifications
+// “Proxy” endpoint (for notifications, etc.)
 app.post('/proxy', (req, res) => {
   console.log('Proxy payload:', req.body);
   res.json({ status: 'ok' });
 });
 
+const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: {
+    origin: 'https://chating-room-gamma.vercel.app',
+    methods: ['GET','POST'],
+    credentials: true
+  },
+  transports: ['websocket']  // skip polling if you only need websockets
 });
 
 io.on('connection', socket => {
@@ -30,7 +41,8 @@ io.on('connection', socket => {
   socket.on('leaveChat', chatId => socket.leave(chatId));
 
   socket.on('sendMessage', msg => {
-    io.to(msg.chatId).emit('receiveMessage', msg);
+    // emit on dynamic channel and to the room
+    io.to(msg.chatId).emit(`receiveMessage:${msg.chatId}`, msg);
   });
 
   socket.on('chatUpdated', chat => io.emit('chatUpdated', chat));
