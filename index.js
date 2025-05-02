@@ -16,9 +16,9 @@ app.use(cors({
 app.use(express.json());
 
 // Health check
-app.get('/', (_, res) => res.send('Server running'));
+app.get('/', (req, res) => res.send('Server running'));
 
-// “Proxy” endpoint (for notifications, etc.)
+// Proxy endpoint (for notifications, etc.)
 app.post('/proxy', (req, res) => {
   console.log('Proxy payload:', req.body);
   res.json({ status: 'ok' });
@@ -31,7 +31,8 @@ const io = new Server(server, {
     methods: ['GET','POST'],
     credentials: true
   },
-  transports: ['websocket']  // skip polling if you only need websockets
+  // enable both websocket & polling with proper CORS
+  transports: ['websocket', 'polling']
 });
 
 io.on('connection', socket => {
@@ -41,7 +42,7 @@ io.on('connection', socket => {
   socket.on('leaveChat', chatId => socket.leave(chatId));
 
   socket.on('sendMessage', msg => {
-    // emit on dynamic channel and to the room
+    // broadcast on dynamic event and room
     io.to(msg.chatId).emit(`receiveMessage:${msg.chatId}`, msg);
   });
 
